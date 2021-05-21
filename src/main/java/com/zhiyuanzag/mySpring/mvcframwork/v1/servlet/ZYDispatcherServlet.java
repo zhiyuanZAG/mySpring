@@ -1,5 +1,7 @@
 package com.zhiyuanzag.mySpring.mvcframwork.v1.servlet;
 
+import com.sun.tools.javac.util.StringUtils;
+import com.zhiyuanzag.mySpring.mvcframwork.annotation.ZYAutowired;
 import com.zhiyuanzag.mySpring.mvcframwork.annotation.ZYController;
 import com.zhiyuanzag.mySpring.mvcframwork.annotation.ZYService;
 
@@ -11,6 +13,7 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Field;
 import java.net.URL;
 import java.util.*;
 
@@ -73,12 +76,57 @@ public class ZYDispatcherServlet extends HttpServlet {
 
     /*********** 私有方法 ***********/
 
-    //完成HandlerMapper的匹配
+    //完成HandlerMapper的匹配(初始化url 和Method的一对一对应关系)
+    //对添加了@ZYController的controller进行解析, 并做url和方法的映射
     private void doInitHandlerMapping() {
+        if(ioc.isEmpty()) return;
+
+        for (Map.Entry<String, Object> entry : ioc.entrySet()) {
+            Class<?> clazz = entry.getValue().getClass();
+
+            if (!clazz.isAnnotationPresent(ZYController.class)){
+                continue;
+            }
+
+            //1. 获取类上, 注解中定义的路径(/.../....)
+            String baseUrl = "";
+            if (clazz.isAnnotationPresent(ZYController.class)) {    //类上有controller注解, 需要先拼接类名上的url地址
+                baseUrl += clazz.getAnnotation(ZYController.class).value();
+            }
+            //2. 获取类中, 各个方法的
+
+        }
     }
 
     //依赖注入DI
     private void doAutowired() {
+        //将类的属性中, 添加了@ZYAutoWired注解的属性进行自动赋值
+        if(ioc.isEmpty()) return;
+
+        for (Map.Entry<String, Object> entry : ioc.entrySet()) {
+            //利用反射, 获取到类中所有的属性
+            Field[] fields = entry.getValue().getClass().getDeclaredFields();   //Declared 会取到所有的, 特定的字段, 包括private/protected/default
+            for (Field f : fields) {
+                if(!f.isAnnotationPresent(ZYAutowired.class)) continue;
+
+                //确认@ZYAutowired中是否有自定义的注入vale, 有的话, 按自定义的对象名注入
+                ZYAutowired autowired = f.getAnnotation(ZYAutowired.class);
+                String beanName = autowired.value().trim();
+                if("".equals(beanName)){
+                    //无别名, 按照属性的字段名从容器中取对象
+                    beanName = f.getType().getName();
+                }
+                //[暴力访问] 如果是public以外的修饰符, 只要加了@ZYAutowired的注解, 都要强制赋值
+                f.setAccessible(true);
+
+                try {
+                    //利用反射机制, 动态给属性字段赋值
+                    f.set(entry.getValue(), ioc.get(beanName));
+                } catch (IllegalAccessException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
     }
 
     //IoC容器实例化(使用反射, 创建)
@@ -98,8 +146,23 @@ public class ZYDispatcherServlet extends HttpServlet {
                     String beanName = toLowerFirstCase(clazz.getSimpleName());  //实例的映射key名 (需要将类名的首字母小写)
                     ioc.put(beanName, instance);
                 }else if(clazz.isAnnotationPresent(ZYService.class)){   //@ZYService 注解
-                    //需要判断@ZYService 注解中是否添加了别名
-
+                    //1. 判断@ZYService 注解中是否添加了别名
+                    ZYService service = clazz.getAnnotation(ZYService.class);
+                    String beanName = service.value();
+                    //2. 默认首字母小写
+                    if("".equals(beanName)){    //无别名
+                        beanName = toLowerFirstCase(clazz.getSimpleName());
+                    }
+                    //3. 放入容器中
+                    Object instance = clazz.newInstance();
+                    ioc.put(beanName, instance);
+                    //4. 根据类型自动赋值(接口与实现类)
+                    for(Class<?> i :clazz.getInterfaces()){ // 接口/实现类
+                        if(ioc.containsKey(i.getName())){
+                            throw new Exception("The '" + i.getName() + "' is exit!");
+                        }
+                        ioc.put(i.getName(), instance);
+                    }
 
                 }else{
                     //.... 对其他种类注解的处理
