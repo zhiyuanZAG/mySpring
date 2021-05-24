@@ -1,9 +1,6 @@
 package com.zhiyuanzag.mySpring.mvcframwork.v1.servlet;
 
-import com.sun.tools.javac.util.StringUtils;
-import com.zhiyuanzag.mySpring.mvcframwork.annotation.ZYAutowired;
-import com.zhiyuanzag.mySpring.mvcframwork.annotation.ZYController;
-import com.zhiyuanzag.mySpring.mvcframwork.annotation.ZYService;
+import com.zhiyuanzag.mySpring.mvcframwork.annotation.*;
 
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
@@ -13,7 +10,11 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
 import java.net.URL;
 import java.util.*;
 
@@ -36,6 +37,9 @@ public class ZYDispatcherServlet extends HttpServlet {
     //servlet容器
     private Map<String, Object> ioc = new HashMap<>();
 
+    //url与对应Method的映射关系
+    private Map<String, Method> handlerMapping = new HashMap<>();
+
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         //重写doGet()方法
@@ -45,11 +49,73 @@ public class ZYDispatcherServlet extends HttpServlet {
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         //实际的运行阶段
-        doDispatcher(req, resp);
+        try {
+            doDispatcher(req, resp);
+        } catch (Exception e) {
+            e.printStackTrace();
+            resp.getWriter().write("500 Exception, Detail : "+ Arrays.toString(e.getStackTrace()));
+        }
     }
 
     //doPost的实际运行
-    private void doDispatcher(HttpServletRequest req, HttpServletResponse resp) {
+    private void doDispatcher(HttpServletRequest req, HttpServletResponse resp) throws IOException, InvocationTargetException, IllegalAccessException {
+        //取出当前请求的url, 从容器中取出对应的方法, 然后invoke执行
+        String url = req.getRequestURI();
+        String contxetPath = req.getContextPath();
+        url = url.replaceAll(contxetPath, "").replaceAll("/", "/");
+        if (!this.handlerMapping.containsKey(url)) {
+            resp.getWriter().write("404 Not Found!");
+            return;
+        }
+        Map<String, String[]> params = req.getParameterMap();   //请求中的参数map
+        Method method = handlerMapping.get(url);
+
+        //获取形参列表, 并添加对@ZYRequestParam的解析
+        Class<?>[] paramTypes = method.getParameterTypes();
+        Object[] paramValues = new Object[paramTypes.length];
+
+        //遍历方法的形参列表
+        for (int i = 0; i < paramTypes.length; i++) {
+            Class paramType = paramTypes[i];
+            if (paramType == HttpServletRequest.class) {
+                paramValues[i] = req;
+            } else if (paramType == HttpServletResponse.class) {
+                paramValues[i] = resp;
+            } else if (paramType == String.class) {
+//                ZYRequestParam requestParam = (ZYRequestParam) paramType.getAnnotation(ZYRequestParam.class);
+
+
+                //通过运行时状态去拿到
+                Annotation[][] pa = method.getParameterAnnotations();   //参数的注解, 是一个二维数组
+                for (int j = 0; j < pa.length; j++) {
+                    for (Annotation a : pa[j]) {
+                        if (a instanceof ZYRequestParam) {  //参数注解为@ZYRequestParam
+                            String paramName = ((ZYRequestParam) a).value();    //注解的别名
+
+                            if (!"".equals(paramName)) {    //参数有注解的别名
+                                String value = Arrays.toString(params.get(paramName))
+                                        .replaceAll("\\[|\\]", "")  //替换方括号
+                                        .replaceAll("\\s+", ",");   //匹配替换空白字符, 包括空格, 制表符, 换页符等
+                                paramValues[i] = value;
+                            }else{  //参数无注解别名, 使用形参名, 作为参数映射的key
+                                // 注意此处: 必须在java8以上版本, 在编译时, 添加-parameters编译命令, 才能在.class文件中, 正确的将原形参名编译进去. 利用反射在容器中取到对应的实参.
+                                Parameter[] parameters = method.getParameters();
+                                String paraName = parameters[i].getName();
+                                String value = Arrays.toString(params.get(paraName))
+                                        .replaceAll("\\[|\\]", "")  //替换方括号
+                                        .replaceAll("\\s+", ",");   //匹配替换空白字符, 包括空格, 制表符, 换页符等
+                                paramValues[i] = value;
+
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        //获取对应的对象, 利用反射, 执行该方法
+        String beanName = toLowerFirstCase(method.getDeclaringClass().getSimpleName());
+        method.invoke(ioc.get(beanName), paramValues);
     }
 
     @Override
@@ -69,7 +135,7 @@ public class ZYDispatcherServlet extends HttpServlet {
         //5. 初始化HandlerMapping(将url与method匹配)
         doInitHandlerMapping();
 
-        System.out.println("ZY Spring framework is init.");
+        System.out.println("============= ZY Spring framework is init. =============");
 
     }
 
@@ -84,17 +150,26 @@ public class ZYDispatcherServlet extends HttpServlet {
         for (Map.Entry<String, Object> entry : ioc.entrySet()) {
             Class<?> clazz = entry.getValue().getClass();
 
-            if (!clazz.isAnnotationPresent(ZYController.class)){
+            if (!clazz.isAnnotationPresent(ZYRequestMapping.class)){
                 continue;
             }
 
             //1. 获取类上, 注解中定义的路径(/.../....)
             String baseUrl = "";
-            if (clazz.isAnnotationPresent(ZYController.class)) {    //类上有controller注解, 需要先拼接类名上的url地址
-                baseUrl += clazz.getAnnotation(ZYController.class).value();
+            if (clazz.isAnnotationPresent(ZYRequestMapping.class)) {    //类上有controller注解, 需要先拼接类名上的url地址
+                baseUrl += clazz.getAnnotation(ZYRequestMapping.class).value();
             }
-            //2. 获取类中, 各个方法的
-
+            //2. 获取各个类中, 各个方法上的@ZYController注解
+            for (Method method : clazz.getMethods()) {
+                if (!method.isAnnotationPresent(ZYRequestMapping.class)) {
+                    continue;
+                }
+                ZYRequestMapping requestMapping = method.getAnnotation(ZYRequestMapping.class);
+                String url = ("/" + baseUrl + "/" +requestMapping.value())
+                        .replaceAll("/+", "/"); //将多余的"//" 转化为"/"
+                handlerMapping.put(url, method);
+                System.out.println("Mapped : " + url + " --> " + method);
+            }
         }
     }
 
