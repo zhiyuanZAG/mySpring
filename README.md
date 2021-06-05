@@ -44,9 +44,38 @@
 
 ##  二、功能类拆分(IoC) [从servlet 到ApplicationContext]-V2  
 
+### 1. Spring顶层设计IoC的实现过程:
 
+* Map容器
 
-### 1. 加载配置文件
+* Factory工厂
+
+* ApplicationContext上下文
+
+  * 持有beanFactory的引用, 静态代理, 或者叫门面模式
+
+* BeanDefinitionReader解析器
+
+  * 负责解析所有的配置文件(xml/ yml/ annotation/ properties)
+
+* BeanDefinition元信息, 配置
+
+* Bean实例, 用反射实例化
+
+  * 原生的bean 和代理的bean
+  * 都放到BeanWrapper中, 使用包装器模式
+
+* BeanWrapper持有Bean的引用
+
+  * 缓存到了IoC容器
+
+      
+
+    
+
+### 2. 如何拆分DispatchServlet
+
+#### (1) 加载配置文件
 
 * 借助BeanDefinitionReader来实现 (功能: 读取并加载配置文件, 可以通过定义各种不同的实现类, 分别实现从properties/ xml等文件形式中读取并加载配置文件)
 
@@ -54,16 +83,23 @@
 
   a. 加载配置文件
 
-  b. 包扫描
+  b. 包扫描  
 
-### 2. 解析配置文件, 将所有配置信息封装成BeanDefinition对象
+  
 
-* 一个BeanDefinition对象, 封装的是一个类对象的相关定义信息(如bean是否要延时加载等信息)
+####  (2) 解析配置文件, 将所有配置信息封装成BeanDefinition对象
 
-### 3. 把所有的配置信息缓存起来
+* 一个BeanDefinition对象, 封装的是一个类对象的相关定义信息(如bean是否要延时加载等信息)  
 
-* 通过容器register实现
+  
 
-### 4. 创建"非延时加载"的所有bean
+#### (3) 把所有的配置信息缓存起来
+
+* 通过容器register实现  
+
+  
+
+#### (4) 创建"非延时加载"的所有bean
 
 * 循环调用getBean()方法
+
