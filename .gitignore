@@ -25,3 +25,4 @@ hs_err_pid*
 # idea配置
 *.idea
 target/
+*.iml
