@@ -142,10 +142,11 @@ public class ZYDefaultListableBeanFactory implements ZYBeanFactory {
             instance = clazz.newInstance();
 
             this.factoryObjectCache.put(beanName, instance);
-            return instance;
+
         } catch (Exception e) {
             e.printStackTrace();
         }
+        return instance;
     }
 
 
