@@ -1,6 +1,8 @@
 package com.zhiyuanzag.mySpring.springV2.framework.beans.support;
 
 import com.zhiyuanzag.mySpring.mvcframwork.annotation.ZYAutowired;
+import com.zhiyuanzag.mySpring.mvcframwork.annotation.ZYController;
+import com.zhiyuanzag.mySpring.mvcframwork.annotation.ZYService;
 import com.zhiyuanzag.mySpring.springV2.framework.beans.ZYBeanWrapper;
 import com.zhiyuanzag.mySpring.springV2.framework.beans.config.ZYBeanDefinition;
 import com.zhiyuanzag.mySpring.springV2.framework.core.ZYBeanFactory;
@@ -22,22 +24,22 @@ import java.util.Map;
 public class ZYDefaultListableBeanFactory implements ZYBeanFactory {
 
     //map中存的实际是容器的beanName-> beanDefinition的映射关系
-    private Map<String, ZYBeanDefinition> beanDefinitionMap = new HashMap<>();
+    public Map<String, ZYBeanDefinition> beanDefinitionMap = new HashMap<>();
 
     //三级缓存(终极缓存)
-    private Map<String, ZYBeanWrapper> factoryBeanWrapperCache = new HashMap<>();
+    public Map<String, ZYBeanWrapper> factoryBeanWrapperCache = new HashMap<>();
 
     //实体对象的缓存
-    private Map<String, Object> factoryObjectCache = new HashMap<>();
+    public Map<String, Object> factoryObjectCache = new HashMap<>();
 
     @Override
     public Object getBean(String beanName) {
-        return null;
+        return this.factoryObjectCache.get(beanName);
     }
 
     @Override
     public Object getBean(Class<?> beanCLass) {
-        return null;
+        return this.getBean(beanCLass.getName());
     }
 
     /**
@@ -62,12 +64,10 @@ public class ZYDefaultListableBeanFactory implements ZYBeanFactory {
         //循环调用doCreateBean方法
         for (Map.Entry<String, ZYBeanDefinition> entry : beanDefinitionMap.entrySet()) {
             String beanName = entry.getKey();
-            if (!entry.getValue().isLazyInit()) {   //非延迟加载
+            if (!entry.getValue().isLazyInit()) {   //非延迟加载的对象
                 doCreateBean(beanName);
             }
         }
-
-
     }
 
 
@@ -99,37 +99,45 @@ public class ZYDefaultListableBeanFactory implements ZYBeanFactory {
         this.factoryBeanWrapperCache.put(beanName, beanWrapper);
     }
 
-    //对bean对象进行依赖注入
+    //对bean对象的属性进行依赖注入
     private void populateBean(String beanName, ZYBeanDefinition beanDefinition, ZYBeanWrapper beanWrapper) {
         //将类的属性中, 添加了@ZYAutoWired注解的属性进行自动赋值
         //只单独注入一个对象的依赖
-        // TODO: 2021/6/7 待继续
+        Class<?> beanClass = beanWrapper.getWrapperClass();
 
-//        for (Map.Entry<String, Object> entry : factoryObjectCache.entrySet()) {
-//            //利用反射, 获取到类中所有的属性
-//            Field[] fields = entry.getValue().getClass().getDeclaredFields();   //Declared 会取到所有的, 特定的字段, 包括private/protected/default
-//            for (Field f : fields) {
-//                if(!f.isAnnotationPresent(ZYAutowired.class)) continue;
-//
-//                //确认@ZYAutowired中是否有自定义的注入vale, 有的话, 按自定义的对象名注入
-//                ZYAutowired autowired = f.getAnnotation(ZYAutowired.class);
-//                String autowireBeanName = autowired.value().trim();
-//                if("".equals(beanName)){
-//                    //无别名, 按照属性的字段名从容器中取对象
-//                    autowireBeanName = f.getType().getName();
-//                }
-//                //[暴力访问] 如果是public以外的修饰符, 只要加了@ZYAutowired的注解, 都要强制赋值
-//                f.setAccessible(true);
-//
-//                try {
-//                    //利用反射机制, 动态给属性字段赋值
-//                    f.set(entry.getValue(), factoryObjectCache.get(autowireBeanName));
-//                } catch (IllegalAccessException e) {
-//                    e.printStackTrace();
-//                }
-//            }
-//        }
+        Object instance = beanWrapper.getWapperInstance();
 
+        if (!(beanClass.isAnnotationPresent(ZYController.class) || beanClass.isAnnotationPresent(ZYService.class))) {
+            return;
+        }
+
+        //忽略字段的修饰符, 不管是private/ protected/ public/ default
+        for (Field f : beanClass.getDeclaredFields()) {
+            if (!f.isAnnotationPresent(ZYAutowired.class)) {
+                continue;
+            }
+
+            //取 autowired 自定义的别名
+            ZYAutowired autowired = f.getAnnotation(ZYAutowired.class);
+            String autowiredBeanName = autowired.value().trim();
+            if ("".equals(autowiredBeanName)) {
+                autowiredBeanName = f.getType().getName();
+            }
+
+            //强制访问
+            f.setAccessible(true);
+
+            try {
+                if (this.factoryObjectCache.get(autowiredBeanName) == null) {
+                    continue;
+                }
+                //todo 此处设置自动注入时, 是如何保证容器中实例化顺序的问题的?
+                //todo 如果存在循环依赖, 要怎么处理?
+                f.set(instance, this.factoryBeanWrapperCache.get(autowiredBeanName).getWapperInstance());
+            } catch (IllegalAccessException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     //使用反射实例化对象

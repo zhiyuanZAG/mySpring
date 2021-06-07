@@ -90,12 +90,12 @@ public class ZYBeanDefinitionReader {
     }
 
     //包扫描
-    private void doScanner(String scanPackage) {
+    private void doLoadConfig(String scanPackage) {
         //加载配置文件
         //从当前类路径下找到Spring配置文件所在的路径
         //并且将读取出来的配置放到Properties中
         //即, 将application.properties中的配置转移到了内存中(scanPackage = com.zhiyuanzag.mySpring.demo)
-        InputStream fil = this.getClass().getClassLoader().getResourceAsStream(scanPackage);
+        InputStream fil = this.getClass().getClassLoader().getResourceAsStream(scanPackage.replaceAll("classpath:", ""));
         try {
             this.configContext.load(fil);   //配置文件加载到Properties中
         } catch (Exception e) {
@@ -111,9 +111,11 @@ public class ZYBeanDefinitionReader {
     }
 
     //加载配置文件
-    private void doLoadConfig(String scanPackage) {
+    private void doScanner(String scanPackage) {
         //包扫描
-        URL url = this.getClass().getClassLoader().getResource(scanPackage.replaceAll("\\.", "/"));
+        URL url = this.getClass()
+                .getClassLoader()
+                .getResource("/" + scanPackage.replaceAll("\\.", "/"));
         File classPath = new File(url.getPath());
         for(File file : classPath.listFiles()){
             if(file.isDirectory()){ //文件夹

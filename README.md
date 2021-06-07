@@ -2,6 +2,12 @@
 
 
 
+**[注意] : 当本地JDK版本为1.8及以上时, 请在IDEA编辑器的File->Settings->java Compiler中的Additional command line parameters添加"-parameters"参数;**
+
+>  *因为在dispatchServlet的doPost()方法里, 进行参数绑定的过程中, 需要使用反射从对应Controller的class文件获取其形参名与@requestParam注解进行匹配, 所以就要求java源文件编译为.class文件时, 需要保留方法的形参名字*.
+
+<br/>
+
 ## 一、实现Spring的基本思路-V1
 
 
@@ -36,11 +42,9 @@
 | **反射调用method.invoke()方法** | **利用反射, 执行方法并返回结果**                             |
 | **response.getWrite().write()** | **将返回结果输出到浏览器**                                 |
 
+<br/>
 
-
-
-
- 
+<br/>
 
 ##  二、功能类拆分(IoC) [从servlet 到ApplicationContext]-V2  
 
@@ -69,9 +73,8 @@
 
   * 缓存到了IoC容器
 
-      
-
     
+
 
 ### 2. 如何拆分DispatchServlet
 

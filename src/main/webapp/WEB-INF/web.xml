@@ -7,10 +7,11 @@
 
     <servlet>
         <servlet-name>zymvc</servlet-name>
-        <servlet-class>com.zhiyuanzag.mySpring.mvcframwork.v1.servlet.ZYDispatcherServlet</servlet-class>
+<!--        <servlet-class>com.zhiyuanzag.mySpring.mvcframwork.v1.servlet.ZYDispatcherServlet</servlet-class>-->
+        <servlet-class>com.zhiyuanzag.mySpring.springV2.framework.webmvc.servlet.ZYDispatcherServletV2</servlet-class>
         <init-param>
             <param-name>contextConfigLocation</param-name>
-            <param-value>application.properties</param-value>
+            <param-value>classpath:application.properties</param-value>
         </init-param>
 
         <load-on-startup>1</load-on-startup>

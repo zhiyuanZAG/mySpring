@@ -20,6 +20,7 @@ public class ZYBeanWrapper {
 
     public ZYBeanWrapper(Object wapperInstance) {
         this.wapperInstance = wapperInstance;
+        this.wrapperClass = wapperInstance.getClass();  //手动设置对象的class属性
     }
 
     public Object getWapperInstance() {
