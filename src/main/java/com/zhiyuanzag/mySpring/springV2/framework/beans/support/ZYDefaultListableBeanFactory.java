@@ -103,7 +103,7 @@ public class ZYDefaultListableBeanFactory implements ZYBeanFactory {
     private void populateBean(String beanName, ZYBeanDefinition beanDefinition, ZYBeanWrapper beanWrapper) {
         //将类的属性中, 添加了@ZYAutoWired注解的属性进行自动赋值
         //只单独注入一个对象的依赖
-        // TODO: 2021/6/7 待继续 
+        // TODO: 2021/6/7 待继续
 
 //        for (Map.Entry<String, Object> entry : factoryObjectCache.entrySet()) {
 //            //利用反射, 获取到类中所有的属性
@@ -142,6 +142,7 @@ public class ZYDefaultListableBeanFactory implements ZYBeanFactory {
             instance = clazz.newInstance();
 
             this.factoryObjectCache.put(beanName, instance);
+            return instance;
         } catch (Exception e) {
             e.printStackTrace();
         }
