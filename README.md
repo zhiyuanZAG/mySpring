@@ -15,38 +15,38 @@
 ### 1. 配置阶段
 | 步骤        | 操作                                          |
 | -------------------- | ------------------------------------------------------------ |
-| **配置web.xml**      | DispatcherServlet                                            |
-| **设定init-param**   | **contextConfigLocation=classpath:application.xml**          |
-| **设定url-parttern** | **/***                                                       |
-| **配置Annotation**   | **@controller, @Service, @Autowired, @RequestParamMapping...** |
+| 配置web.xml      | DispatcherServlet                                        |
+| 设定init-param   | contextConfigLocation=classpath:application.xml          |
+| 设定url-parttern | /*                                                       |
+| 配置Annotation   | @controller, @Service, @Autowired, @RequestParamMapping... |
 
 
 
 ### 2. 初始化阶段
 | 步骤        | 操作                                          |
 | -------------------- | ------------------------------------------------------------ |
-| **调用init()方法**               | 加载配置文件                                                 |
-| **IoC容器初始化**                | **Map<String, Object>**                                      |
-| **扫描相关的类**                 | **Scan-package="com.zhiyuanzag"**                            |
-| **创建实例并保存至容器中 [IoC]** | **通过反射机制将实例化放到Ioc容器中**                        |
-| **进行DI操作 [DI]**              | **扫描IoC容器的实例, 给没有复制的属性自动赋值**              |
-| **初始化HandlerMapping [MVC]**   | **将一个URL和一个Method进行一对一的关联映射Map<String, Method>** |
+| 调用init()方法               | 加载配置文件                                             |
+| IoC容器初始化                | Map<String, Object>                                      |
+| 扫描相关的类                 | Scan-package="com.zhiyuanzag"                            |
+| 创建实例并保存至容器中 [IoC] | 通过反射机制将实例化放到Ioc容器中                        |
+| 进行DI操作 [DI]              | 扫描IoC容器的实例, 给没有复制的属性自动赋值              |
+| 初始化HandlerMapping [MVC]   | 将一个URL和一个Method进行一对一的关联映射Map<String, Method> |
 
 
 
 ### 3. 运行阶段
 | 步骤        | 操作                                          |
 | -------------------- | ------------------------------------------------------------ |
-| **调用post() / doGet()方法**    | **web容器调用doPost()/doGet()方法, 获得request/response对象** |
-| **匹配HandlerMapping**          | **从request对象中获取到对象输入的url, 找到其中对应的Method** |
-| **反射调用method.invoke()方法** | **利用反射, 执行方法并返回结果**                             |
-| **response.getWrite().write()** | **将返回结果输出到浏览器**                                 |
+| 调用post() / doGet()方法 | web容器调用doPost()/doGet()方法, 获得request/response对象 |
+| 匹配HandlerMapping      | 从request对象中获取到对象输入的url, 找到其中对应的Method |
+| 反射调用method.invoke()方法 | 利用反射, 执行方法并返回结果                         |
+| response.getWrite().write() | 将返回结果输出到浏览器                             |
 
 <br/>
 
 <br/>
 
-##  二、功能类拆分(IoC) [从servlet 到ApplicationContext]-V2  
+##  二、功能类拆分(IoC) [从servlet 到ApplicationContext]-V2
 
 ### 1. Spring顶层设计IoC的实现过程:
 
@@ -105,4 +105,38 @@
 #### (4) 创建"非延时加载"的所有bean
 
 * 循环调用getBean()方法
+
+
+
+<br>
+
+## 三、功能拆分(mvc) [Spring MVC的九大功能组件] -V3
+
+### 1. 九大组件及作用
+
+| 组件名                      | 功能                                | 备注                                |
+| --------------------------- | ----------------------------------- | ----------------------------------- |
+| MultipartResolver           | 多文件上传组件                      | 处理不同的文件流                    |
+| LocalResolver               | 本地语言环境                        |                                     |
+| ThemeResolver               | 主体模板处理器                      | 负责页面的不同展示风格              |
+| HandlerMapping              | 保存URL的映射关系                   | URL与controller中的method的映射     |
+| HandlerAdapter              | 根据url, 进行参数动态适配           | 封装成ModelAndView返回前端          |
+| HandlerExceptionResolver    | 异常拦截                            | 如404/500/403等不同状态返回不同页面 |
+| RequestToVIewNameTranslator | 视图提取器, 从request中获取viewName | 根据viewName找到真实的模板文件      |
+| ViewResolvers               | 视图转换器, 模板引擎                |                                     |
+| FlashMapManager             | 参数缓存器                          | 用来缓存url中的参数                 |
+
+<br>
+
+### 2. 如何拆分mvc的功能:
+
+#### (1) 根据url找到对应的HandlerMapping
+
+#### (2) 找到对应的HandlerAdapter
+
+#### (3) ha.handle()找到对应的ModelAndView
+
+#### (4) ViewResolver找到对应的view对象
+
+#### (5) view.render()解析模板
 
