@@ -1,5 +1,6 @@
-package com.zhiyuanzag.mySpring.springMVCV3.springwork.webmvc.servlet;
+package com.zhiyuanzag.mySpring.springMVCV3.framework.webmvc.servlet;
 
+import com.zhiyuanzag.mySpring.mvcframwork.annotation.ZYController;
 import com.zhiyuanzag.mySpring.mvcframwork.annotation.ZYRequestMapping;
 import com.zhiyuanzag.mySpring.mvcframwork.annotation.ZYRequestParam;
 import com.zhiyuanzag.mySpring.springV2.framework.context.ZYApplicationContext;
@@ -14,9 +15,7 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 /**
  * 〈一句话功能简述〉<br>
@@ -26,7 +25,7 @@ import java.util.Map;
  * @create 2021/5/19 20:09
  * @since 1.0
  */
-public class ZYDispatcherServletV2 extends HttpServlet {
+public class ZYDispatcherServletV3 extends HttpServlet {
 
     // url与对应Method的映射关系
     private Map<String, Method> handlerMapping = new HashMap<>();
@@ -114,10 +113,10 @@ public class ZYDispatcherServletV2 extends HttpServlet {
     public void init(ServletConfig config) throws ServletException {
 
         context = new ZYApplicationContext(config.getInitParameter("contextConfigLocation"));
+
         //========= mvc功能 ==========
-        //5. 初始化HandlerMapping(将url与method匹配)
-        // TODO: 2021/6/15 拆分Spring MVC的功能
-        doInitHandlerMapping();
+        //容器启动的初始化策略
+        initStrategies(context);
 
         System.out.println("============= ZY Spring framework is init. =============");
 
@@ -126,9 +125,67 @@ public class ZYDispatcherServletV2 extends HttpServlet {
 
     /*********** 私有方法 ***********/
 
-    //完成HandlerMapper的匹配(初始化url 和Method的一对一对应关系)
-    //对添加了@ZYController的controller进行解析, 并做url和方法的映射
-    private void doInitHandlerMapping() {
+    /**
+     * 功能描述: <br>
+     * 〈SpringMVC启动的初始化策略〉
+     *
+     * @author zhiyuan.zhang01
+     * @param: [context]
+     * @return void
+     * @created 2021/7/7 19:58
+    */
+    private void initStrategies(ZYApplicationContext context) {
+        //handlerMapping
+        doInitHandlerMapping(context);
+        //初始化参数适配器
+        doInitHandlerAdapters(context);
+        //初始化图形转换器
+        doInitViewResolvers(context);
+    }
+
+
+
+
+
+
+    /**
+     * 功能描述: <br>
+     * 〈初始化图形转换器〉
+     *
+     * @author zhiyuan.zhang01
+     * @param: [context]
+     * @return void
+     * @created 2021/7/7 20:06
+    */
+    private void doInitViewResolvers(ZYApplicationContext context) {
+        // TODO: 2021/7/7
+    }
+
+    /**
+     * 功能描述: <br>
+     * 〈初始化参数适配器〉
+     *
+     * @author zhiyuan.zhang01
+     * @param: [context]
+     * @return void
+     * @created 2021/7/7 20:05
+    */
+    private void doInitHandlerAdapters(ZYApplicationContext context) {
+        // TODO: 2021/7/7
+    }
+
+    //v3: 对handlerMapping进行封装
+    /**
+     * 功能描述: <br>
+     * 〈handlerMapping适配;
+     * HandlerMapper的匹配(初始化url 和Method的一对一对应关系)〉
+     *
+     * @author zhiyuan.zhang01
+     * @param: [context]
+     * @return void
+     * @created 2021/7/7 20:05
+    */
+    private void doInitHandlerMapping(ZYApplicationContext context) {
         if(context.getBeanDefinitionCount() == 0) return;
 
         for (String beanName : context.getBeanDefinitionNames()) {
@@ -136,7 +193,7 @@ public class ZYDispatcherServletV2 extends HttpServlet {
             Object instance = context.getBean(beanName);
             Class<?> clazz = instance.getClass();
 
-            if (!clazz.isAnnotationPresent(ZYRequestMapping.class)){
+            if (!clazz.isAnnotationPresent(ZYController.class)){    //对添加了@ZYController的controller进行解析, 并做url和方法的映射
                 continue;
             }
 
@@ -158,6 +215,8 @@ public class ZYDispatcherServletV2 extends HttpServlet {
             }
         }
     }
+
+
 
     //将首字母变更为小写
     private String toLowerFirstCase(String simpleName) {

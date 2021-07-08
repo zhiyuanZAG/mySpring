@@ -1,6 +1,6 @@
-package com.zhiyuanzag.mySpring.springMVCV3.springwork.beans.support;
+package com.zhiyuanzag.mySpring.springMVCV3.framework.beans.support;
 
-import com.zhiyuanzag.mySpring.springMVCV3.springwork.beans.config.ZYBeanDefinition;
+import com.zhiyuanzag.mySpring.springMVCV3.framework.beans.config.ZYBeanDefinition;
 
 import java.io.File;
 import java.io.IOException;

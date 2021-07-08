@@ -1,10 +1,10 @@
-package com.zhiyuanzag.mySpring.springMVCV3.springwork.beans.support;
+package com.zhiyuanzag.mySpring.springMVCV3.framework.beans.support;
 
 import com.zhiyuanzag.mySpring.mvcframwork.annotation.ZYAutowired;
 import com.zhiyuanzag.mySpring.mvcframwork.annotation.ZYController;
 import com.zhiyuanzag.mySpring.mvcframwork.annotation.ZYService;
-import com.zhiyuanzag.mySpring.springMVCV3.springwork.beans.ZYBeanWrapper;
-import com.zhiyuanzag.mySpring.springMVCV3.springwork.beans.config.ZYBeanDefinition;
+import com.zhiyuanzag.mySpring.springMVCV3.framework.beans.ZYBeanWrapper;
+import com.zhiyuanzag.mySpring.springMVCV3.framework.beans.config.ZYBeanDefinition;
 import com.zhiyuanzag.mySpring.springV2.framework.core.ZYBeanFactory;
 
 import java.lang.reflect.Field;

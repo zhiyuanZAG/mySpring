@@ -5,11 +5,15 @@ import com.zhiyuanzag.mySpring.springV2.framework.beans.support.ZYBeanDefinition
 import com.zhiyuanzag.mySpring.springV2.framework.beans.support.ZYDefaultListableBeanFactory;
 import com.zhiyuanzag.mySpring.springV2.framework.core.ZYBeanFactory;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 〈一句话功能简述〉<br>
- * 〈〉
+ * 〈spring 容器的上下文, 定义了BeanFactory属性, 可以直接从context获取到容器注册了的所有对象〉
  *
  * @author zhiyuanzhang9
  * @create 2021/6/7 19:26
@@ -31,7 +35,6 @@ public class ZYApplicationContext implements ZYBeanFactory {
 
             //3. 将所有的配置信息缓存起来
             registry.doRegistryBeanDefinition(list);
-
             //4. 加载所有的非延时加载的bean
             registry.doLoadInstance();
         } catch (Exception e) {

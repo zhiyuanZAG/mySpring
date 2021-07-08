@@ -1,4 +1,4 @@
-package com.zhiyuanzag.mySpring.springMVCV3.springwork.beans;
+package com.zhiyuanzag.mySpring.springMVCV3.framework.beans;
 
 /**
  * 〈一句话功能简述〉<br>
