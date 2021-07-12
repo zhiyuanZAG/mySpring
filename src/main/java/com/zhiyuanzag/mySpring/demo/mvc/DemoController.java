@@ -25,7 +25,7 @@ public class DemoController {
     IDemoService iDemoService;
 
     @ZYRequestMapping("/show")
-    public void show(HttpServletRequest req, HttpServletResponse resp, @ZYRequestParam String name) {
+    public void show(HttpServletRequest req, HttpServletResponse resp, @ZYRequestParam("name") String name) {
         String result = iDemoService.show(name);
         try {
             resp.getWriter().write(result);

@@ -2,7 +2,6 @@ package com.zhiyuanzag.mySpring.springMVCV3.framework.webmvc.servlet;
 
 import com.zhiyuanzag.mySpring.mvcframwork.annotation.ZYController;
 import com.zhiyuanzag.mySpring.mvcframwork.annotation.ZYRequestMapping;
-import com.zhiyuanzag.mySpring.mvcframwork.annotation.ZYRequestParam;
 import com.zhiyuanzag.mySpring.springV2.framework.context.ZYApplicationContext;
 
 import javax.servlet.ServletConfig;
@@ -11,11 +10,10 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.lang.reflect.Parameter;
 import java.util.*;
+import java.util.regex.Pattern;
 
 /**
  * 〈一句话功能简述〉<br>
@@ -29,6 +27,16 @@ public class ZYDispatcherServletV3 extends HttpServlet {
 
     // url与对应Method的映射关系
     private Map<String, Method> handlerMapping = new HashMap<>();
+
+    //handlerMapping 的缓存
+    private List<ZYHandlerMapping> handlerMappings = new ArrayList<>();
+
+    //handlerMapping与handlerAdapter的映射表
+    private Map<ZYHandlerMapping, ZYHandlerAdapter> handlerAdapters = new HashMap<>();
+
+    //ViewResolver的缓存
+    private ZYViewResolver viewResolver;
+
 
     // 容器上下文
     private ZYApplicationContext context;
@@ -52,62 +60,24 @@ public class ZYDispatcherServletV3 extends HttpServlet {
 
     //doPost的实际运行
     private void doDispatcher(HttpServletRequest req, HttpServletResponse resp) throws IOException, InvocationTargetException, IllegalAccessException {
-        //取出当前请求的url, 从容器中取出对应的方法, 然后invoke执行
-        String url = req.getRequestURI();
-        String contxetPath = req.getContextPath();
-        url = url.replaceAll(contxetPath, "").replaceAll("/", "/");
-        if (!this.handlerMapping.containsKey(url)) {
-            resp.getWriter().write("404 Not Found!");
+        //1. 根据url取得handlerMapping
+        ZYHandlerMapping mapping = this.getHandlerMapping(req);
+
+        //2. 根据HandlerMapping, 取得对应的handlerAdapter
+        if (null == mapping) {
+            processDispatchResult(req, resp, new ZYModelAndView("404"));
             return;
         }
-        Map<String, String[]> params = req.getParameterMap();   //请求中的参数map
-        Method method = handlerMapping.get(url);
+        ZYHandlerAdapter ha = this.getHandlerAdapter(mapping);
 
-        //获取形参列表, 并添加对@ZYRequestParam的解析
-        Class<?>[] paramTypes = method.getParameterTypes();
-        Object[] paramValues = new Object[paramTypes.length];
+        //3. 执行adapter的handler方法, 处理对应的请求, 返回ModelAndView
+        ZYModelAndView mv = ha.handler(req, resp, mapping);
 
-        //遍历方法的形参列表
-        for (int i = 0; i < paramTypes.length; i++) {
-            Class paramType = paramTypes[i];
-            if (paramType == HttpServletRequest.class) {
-                paramValues[i] = req;
-            } else if (paramType == HttpServletResponse.class) {
-                paramValues[i] = resp;
-            } else if (paramType == String.class) {
+        //4. 根据ViewResolver找到对应的view对象, 通过view对象渲染页面并返回结果
+        processDispatchResult(req, resp, mv);
 
-                //通过运行时状态去拿到
-                Annotation[][] pa = method.getParameterAnnotations();   //参数的注解, 是一个二维数组
-                for (int j = 0; j < pa.length; j++) {
-                    for (Annotation a : pa[j]) {
-                        if (a instanceof ZYRequestParam) {  //参数注解为@ZYRequestParam
-                            String paramName = ((ZYRequestParam) a).value();    //注解的别名
-
-                            if (!"".equals(paramName)) {    //参数有注解的别名
-                                String value = Arrays.toString(params.get(paramName))
-                                        .replaceAll("\\[|\\]", "")  //替换方括号
-                                        .replaceAll("\\s+", ",");   //匹配替换空白字符, 包括空格, 制表符, 换页符等
-                                paramValues[i] = value;
-                            }else{  //参数无注解别名, 使用形参名, 作为参数映射的key
-                                // 注意此处: 必须在java8以上版本, 在编译时, 添加-parameters编译命令, 才能在.class文件中, 正确的将原形参名编译进去. 利用反射在容器中取到对应的实参.
-                                Parameter[] parameters = method.getParameters();
-                                String paraName = parameters[i].getName();
-                                String value = Arrays.toString(params.get(paraName))
-                                        .replaceAll("\\[|\\]", "")  //替换方括号
-                                        .replaceAll("\\s+", ",");   //匹配替换空白字符, 包括空格, 制表符, 换页符等
-                                paramValues[i] = value;
-
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        //获取对应的对象, 利用反射, 执行该方法
-        String beanName = toLowerFirstCase(method.getDeclaringClass().getSimpleName());
-        method.invoke(context.getBean(beanName), paramValues);
     }
+
 
     @Override
     public void init(ServletConfig config) throws ServletException {
@@ -124,6 +94,53 @@ public class ZYDispatcherServletV3 extends HttpServlet {
 
 
     /*********** 私有方法 ***********/
+
+    /**
+     * 功能描述: <br>
+     * 〈根据handlerMapping, 从容器中筛选出匹配的handlerAdapter〉
+     *
+     * @author zhiyuan.zhang01
+     * @param: [mapping]
+     * @return com.zhiyuanzag.mySpring.springMVCV3.framework.webmvc.servlet.ZYHandlerAdapter
+     * @created 2021/7/12 15:17
+    */
+    private ZYHandlerAdapter getHandlerAdapter(ZYHandlerMapping mapping) {
+        return this.handlerAdapters.entrySet().stream().filter(entry -> entry.getKey().equals(mapping)).findFirst().get().getValue();
+    }
+
+    /**
+     * 功能描述: <br>
+     * 〈根据request, 筛选出容器中匹配的handlerMapping〉
+     *
+     * @author zhiyuan.zhang01
+     * @param: [req]
+     * @return com.zhiyuanzag.mySpring.springMVCV3.framework.webmvc.servlet.ZYHandlerMapping
+     * @created 2021/7/12 15:16
+    */
+    private ZYHandlerMapping getHandlerMapping(HttpServletRequest req) {
+        String url = req.getRequestURI();
+        String contextPath = req.getContextPath();  //获取到的是服务名(如: http://localhost:8080/spring-mvc/start/query, 则获取到是/spring-mvc)
+        final String fUrl = url.replaceAll(contextPath, "")   //去除掉服务名
+                .replaceAll("/+", "/"); //将多个'//....' 替换成'/'
+
+        return handlerMappings.stream().filter(mapping-> mapping.getPattern().matcher(fUrl).matches()).findFirst().orElse(null);
+    }
+
+    /**
+     * 功能描述: <br>
+     * 〈根据handler处理后返回的ModelAndViewView, 组装返回视图〉
+     *
+     * @author zhiyuan.zhang01
+     * @param: [req, resp, zyModelAndView]
+     * @return void
+     * @created 2021/7/12 15:22
+    */
+    private void processDispatchResult(HttpServletRequest req, HttpServletResponse resp, ZYModelAndView zyModelAndView) throws IOException {
+        //根据handler处理后返回的ModelAndView, 查找到对应View, 在调用其对应的render()方法处理mav中的model
+        if(zyModelAndView == null) return;;
+        ZYView view = this.viewResolver.resolveViewName(zyModelAndView.getViewName());
+        view.render(zyModelAndView.getModel(), req, resp);
+    }
 
     /**
      * 功能描述: <br>
@@ -158,7 +175,9 @@ public class ZYDispatcherServletV3 extends HttpServlet {
      * @created 2021/7/7 20:06
     */
     private void doInitViewResolvers(ZYApplicationContext context) {
-        // TODO: 2021/7/7
+        // 2021/7/7 将系统中定义的各种view模板加载进容器(404.html ...)
+        String templateRoot = context.getConfig().getProperty("templateRoot");
+        this.viewResolver = new ZYViewResolver(templateRoot);
     }
 
     /**
@@ -171,7 +190,8 @@ public class ZYDispatcherServletV3 extends HttpServlet {
      * @created 2021/7/7 20:05
     */
     private void doInitHandlerAdapters(ZYApplicationContext context) {
-        // TODO: 2021/7/7
+        //2021/7/7 给系统的handlerMapping匹配对应的adapter
+        this.handlerMappings.forEach(mapping-> this.handlerAdapters.put(mapping, new ZYHandlerAdapter()));
     }
 
     //v3: 对handlerMapping进行封装
@@ -202,27 +222,27 @@ public class ZYDispatcherServletV3 extends HttpServlet {
             if (clazz.isAnnotationPresent(ZYRequestMapping.class)) {    //类上有controller注解, 需要先拼接类名上的url地址
                 baseUrl += clazz.getAnnotation(ZYRequestMapping.class).value();
             }
+
             //2. 获取各个类中, 各个方法上的@ZYController注解
             for (Method method : clazz.getMethods()) {  //只迭代public方法
                 if (!method.isAnnotationPresent(ZYRequestMapping.class)) {
                     continue;
                 }
                 ZYRequestMapping requestMapping = method.getAnnotation(ZYRequestMapping.class);
-                String url = ("/" + baseUrl + "/" +requestMapping.value())
+
+                // //demo//query
+                String regex = ("/" + baseUrl + "/" +requestMapping.value())
+                        .replaceAll("\\*", ".*")    //
                         .replaceAll("/+", "/"); //将多余的"//" 转化为"/"
-                handlerMapping.put(url, method);
-                System.out.println("Mapped : " + url + " --> " + method);
+                Pattern pattern = Pattern.compile(regex);
+
+                handlerMappings.add(new ZYHandlerMapping(instance, method, pattern));
+                System.out.println("Mapped : " + regex + " --> " + method);
             }
         }
     }
 
 
 
-    //将首字母变更为小写
-    private String toLowerFirstCase(String simpleName) {
-        char[] chars = simpleName.toCharArray();
-        chars[0] += 32;
-        return String.valueOf(chars);
-    }
 
 }

@@ -34,6 +34,12 @@
       <version>4.11</version>
       <scope>test</scope>
     </dependency>
+
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+      <version>1.7.25</version>
+    </dependency>
   </dependencies>
 
   <build>
@@ -97,6 +103,35 @@
           <version>2.8.2</version>
         </plugin>
 
+<!--        模板文件404.html等copy到target中-->
+        <plugin>
+          <artifactId>maven-resources-plugin</artifactId>
+          <version>2.5</version>
+          <executions>
+            <execution>
+              <id>copy-resources</id>
+              <!-- here the phase you need -->
+              <phase>validate</phase>
+              <goals>
+                <goal>copy-resources</goal>
+              </goals>
+              <configuration>
+                <encoding>UTF-8</encoding>
+                <outputDirectory>${basedir}/target/classes</outputDirectory>
+                <resources>
+                  <resource>
+                    <directory>src/main/resources</directory>
+                    <includes>
+                      <include>**/*.*</include>
+                    </includes>
+                    <filtering>true</filtering>
+                  </resource>
+                </resources>
+              </configuration>
+            </execution>
+          </executions>
+        </plugin>
+
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-war-plugin</artifactId>
@@ -113,11 +148,6 @@
                 <includes>
                   <include>**/*.*</include>
                 </includes>
-                <!-- <excludes>
-                    <exclude>**/local</exclude>
-                    <exclude>**/test</exclude>
-                    <exclude>**/product</exclude>
-                </excludes> -->
                 <filtering>true</filtering>
               </resource>
               <resource>

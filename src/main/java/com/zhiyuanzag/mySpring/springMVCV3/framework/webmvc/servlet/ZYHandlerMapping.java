@@ -20,7 +20,7 @@ public class ZYHandlerMapping {
     private Method method;
 
     //url匹配
-    private Pattern pattern;
+    private Pattern pattern;    //为了适配 /* 等请求URI, 所以需要用pattern来做适配
 
     public ZYHandlerMapping(Object controller, Method method, Pattern pattern) {
         this.controller = controller;

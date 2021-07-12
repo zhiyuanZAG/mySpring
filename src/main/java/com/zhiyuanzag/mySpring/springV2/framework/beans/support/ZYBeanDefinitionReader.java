@@ -79,6 +79,10 @@ public class ZYBeanDefinitionReader {
         return result;
     }
 
+    public Properties getConfig(){
+        return this.configContext;
+    }
+
 
     /***** 以下为私有方法 ****/
     //创建beanDefinition对象

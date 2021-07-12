@@ -5,10 +5,7 @@ import com.zhiyuanzag.mySpring.springV2.framework.beans.support.ZYBeanDefinition
 import com.zhiyuanzag.mySpring.springV2.framework.beans.support.ZYDefaultListableBeanFactory;
 import com.zhiyuanzag.mySpring.springV2.framework.core.ZYBeanFactory;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -59,5 +56,9 @@ public class ZYApplicationContext implements ZYBeanFactory {
 
     public String[] getBeanDefinitionNames() {
         return this.registry.beanDefinitionMap.keySet().toArray(new String[0]);
+    }
+
+    public Properties getConfig(){
+        return this.reader.getConfig();
     }
 }

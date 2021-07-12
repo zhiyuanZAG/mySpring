@@ -20,7 +20,7 @@ public class ZYViewResolver {
 
     //构造器
     public ZYViewResolver(String templateRoot) {
-        String templateRootPath = Objects.requireNonNull(this.getClass().getClassLoader().getResource(templateRoot)).getFile();
+        String templateRootPath = this.getClass().getClassLoader().getResource(templateRoot).getFile();
         this.templateRootDir = new File(templateRootPath);
     }
 
@@ -38,7 +38,7 @@ public class ZYViewResolver {
             return null;
         }
         viewName = viewName.endsWith(DEFAULT_TEMPLATE_SUFFIX) ? viewName : (viewName + DEFAULT_TEMPLATE_SUFFIX);
-        File templateFile = new File((templateRootDir.getParent() + "/" + viewName).replaceAll("/+", "/"));
+        File templateFile = new File((templateRootDir.getPath() + "/" + viewName).replaceAll("/+", "/"));
 
         return new ZYView(templateFile);
     }
